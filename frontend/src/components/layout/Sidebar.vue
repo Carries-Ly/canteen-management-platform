@@ -38,6 +38,34 @@
     >
       <span>员工管理</span>
     </el-menu-item>
+    <el-menu-item
+      index="/weekly-menu"
+      v-if="['user', 'admin', 'superadmin'].includes(role)"
+      @click="$emit('select', '/weekly-menu')"
+    >
+      <span>一周总菜单</span>
+    </el-menu-item>
+    <el-menu-item
+      index="/sub-menu"
+      v-if="['user', 'admin', 'superadmin', 'customer'].includes(role)"
+      @click="$emit('select', '/sub-menu')"
+    >
+      <span>子菜单管理</span>
+    </el-menu-item>
+    <el-menu-item
+      index="/inventory"
+      v-if="['user', 'admin', 'superadmin'].includes(role)"
+      @click="$emit('select', '/inventory')"
+    >
+      <span>库存管理</span>
+    </el-menu-item>
+    <el-menu-item
+      index="/purchase-list"
+      v-if="['user', 'admin', 'superadmin'].includes(role)"
+      @click="$emit('select', '/purchase-list')"
+    >
+      <span>采购清单</span>
+    </el-menu-item>
   </el-menu>
 </template>
 

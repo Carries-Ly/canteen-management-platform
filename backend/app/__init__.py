@@ -3,7 +3,12 @@ from .extensions import db, migrate, jwt
 from .config import Config
 
 # 导入所有模型，确保 Flask-Migrate 能识别
-from .models import User, Company, Order, OrderItem, Logistics, MealStandard
+from .models import (
+    User, Company, Order, OrderItem, Logistics, MealStandard,
+    WeeklyMenu, WeeklyMenuItem, SubMenu, SubMenuItem,
+    Ingredient, Inventory, StockIn, StockOut,
+    PurchaseOrder, PurchaseOrderItem
+)
 
 from .routes.auth import auth_bp
 from .routes.orders import orders_bp
@@ -11,6 +16,10 @@ from .routes.logistics import logistics_bp
 from .routes.meal_standards import meal_standards_bp
 from .routes.companies import companies_bp
 from .routes.staff import staff_bp
+from .routes.weekly_menu import weekly_menu_bp
+from .routes.sub_menu import sub_menu_bp
+from .routes.inventory import inventory_bp
+from .routes.purchase_order import purchase_order_bp
 # #region agent log
 import json
 import os
@@ -86,6 +95,10 @@ def create_app():
     app.register_blueprint(companies_bp, url_prefix="/api/companies")
     app.register_blueprint(users_bp, url_prefix="/api/users")
     app.register_blueprint(staff_bp, url_prefix="/api/staff")
+    app.register_blueprint(weekly_menu_bp, url_prefix="/api/weekly-menus")
+    app.register_blueprint(sub_menu_bp, url_prefix="/api/sub-menus")
+    app.register_blueprint(inventory_bp, url_prefix="/api/inventory")
+    app.register_blueprint(purchase_order_bp, url_prefix="/api/purchase-orders")
 
     # 全局错误处理
     @app.errorhandler(404)

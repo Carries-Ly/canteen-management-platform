@@ -8,6 +8,10 @@ import LogisticsOverview from '@/views/logistics/LogisticsOverview.vue';
 import MealStandards from '@/views/system/MealStandards.vue';
 import Companies from '@/views/system/Companies.vue';
 import Staff from '@/views/system/Staff.vue';
+import WeeklyMenu from '@/views/menu/WeeklyMenu.vue';
+import SubMenu from '@/views/menu/SubMenu.vue';
+import InventoryManagement from '@/views/inventory/InventoryManagement.vue';
+import PurchaseList from '@/views/purchase/PurchaseList.vue';
 import { useAuthStore } from '@/store/auth';
 
 const routes: RouteRecordRaw[] = [
@@ -38,6 +42,30 @@ const routes: RouteRecordRaw[] = [
         name: 'Staff',
         component: Staff,
         meta: { roles: ['superadmin'] },
+      },
+      {
+        path: 'weekly-menu',
+        name: 'WeeklyMenu',
+        component: WeeklyMenu,
+        meta: { roles: ['user', 'admin', 'superadmin'] },
+      },
+      {
+        path: 'sub-menu',
+        name: 'SubMenu',
+        component: SubMenu,
+        meta: { roles: ['user', 'admin', 'superadmin', 'customer'] },
+      },
+      {
+        path: 'inventory',
+        name: 'InventoryManagement',
+        component: InventoryManagement,
+        meta: { roles: ['user', 'admin', 'superadmin'] },
+      },
+      {
+        path: 'purchase-list',
+        name: 'PurchaseList',
+        component: PurchaseList,
+        meta: { roles: ['user', 'admin', 'superadmin'] },
       },
     ],
   },

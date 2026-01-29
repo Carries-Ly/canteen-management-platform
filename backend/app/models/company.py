@@ -13,3 +13,4 @@ class Company(db.Model):
 
     customers = db.relationship("User", back_populates="company", lazy="dynamic")
     orders = db.relationship("Order", back_populates="company", lazy="dynamic")
+    sub_menus = db.relationship("SubMenu", back_populates="company", lazy="dynamic")
