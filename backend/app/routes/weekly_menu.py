@@ -17,33 +17,53 @@ def generate_weekly_menu(week_year: int, week_number: int):
     生成一周总菜单（模拟方法）
     返回格式：
     result = [
-        [  # 大荤一
-            [["家常鸡块", "香菇百叶包", "酱鸭胸"], ["家常鸭块", "毛豆萝卜炖小排"]],  # 周一午餐、晚餐
-            ...
+        [  # 大荤
+            [  # 周一
+                ["家常鸡块", "香菇百叶包", "酱鸭胸"],  # 午餐：大荤一、大荤二、大荤三
+                ["家常鸭块", "毛豆萝卜炖小排"]  # 晚餐：大荤一、大荤二
+            ],
+            [  # 周二
+                ["蚝油牛肉", "香菇山药炖蹄膀", "玉米虾仁"],  # 午餐
+                ["玉米炖肋排", "白斩鸡"]  # 晚餐
+            ],
+            ...  # 周三到周日
         ],
-        [  # 大荤二
-            ...
+        [  # 小荤
+            [  # 周一
+                ["西红柿炒蛋", "青豆玉米方腿丁"],  # 午餐：小荤一、小荤二
+                ["香干茭白肉丁", "茄子肉丝"]  # 晚餐：小荤一、小荤二
+            ],
+            ...  # 周二到周日
         ],
-        [  # 小荤一
-            ...
-        ],
-        [  # 小荤二
-            ...
-        ],
-        [  # 素菜一
-            ...
-        ],
-        [  # 素菜二
-            ...
+        [  # 素菜
+            [  # 周一
+                ["干丝白菜", "葱油萝卜丝"],  # 午餐：素菜一、素菜二
+                ["面筋青菜", "木耳冬瓜"]  # 晚餐：素菜一、素菜二
+            ],
+            ...  # 周二到周日
         ],
         [  # 例汤
-            ...
+            [  # 周一
+                ["雪菜豆腐汤"],  # 午餐：例汤
+                ["油豆腐粉丝汤"]  # 晚餐：例汤
+            ],
+            ...  # 周二到周日
         ],
     ]
+    数据结构说明：
+    - 第一层：4个元素，分别代表大荤、小荤、素菜、例汤
+    - 第二层：7个元素，分别代表周一到周日
+    - 第三层：2个元素，分别代表午餐和晚餐
+    - 第四层：根据菜品类型和用餐时间不同，数量不同
+      * 大荤午餐：3个元素（大荤一、大荤二、大荤三）
+      * 大荤晚餐：2个元素（大荤一、大荤二）
+      * 小荤午餐/晚餐：2个元素（小荤一、小荤二）
+      * 素菜午餐/晚餐：2个元素（素菜一、素菜二）
+      * 例汤午餐/晚餐：1个元素（例汤）
     """
     # 这里是模拟数据，实际应该调用已有的菜单生成算法
     result = [
-        [
+        [  # 大荤
             [["家常鸡块", "香菇百叶包", "酱鸭胸"], ["家常鸭块", "毛豆萝卜炖小排"]],
             [["蚝油牛肉", "香菇山药炖蹄膀", "玉米虾仁"], ["玉米炖肋排", "白斩鸡"]],
             [["面拖大排", "家常鸭翅根", "家常鲳鱼"], ["如意蛋卷", "油爆基围虾"]],
@@ -52,7 +72,7 @@ def generate_weekly_menu(week_year: int, week_number: int):
             [["盐水鸭翅", "香菇咸肉煮百叶", "黄豆猪手"], ["酱汁大排", "全家福"]],
             [["干烧鸡腿", "水笋烤肉", "梅菜烧肉"], ["酸菜回锅肉", "烤鸭"]],
         ],
-        [
+        [  # 小荤
             [["西红柿炒蛋", "青豆玉米方腿丁"], ["香干茭白肉丁", "茄子肉丝"]],
             [["南瓜毛豆咸肉丁", "西芹方腿"], ["咸鱼炖蛋", "莴笋炒腊肉"]],
             [["肉糜粉丝", "鸡丝云丝"], ["三色云丝", "大蒜炒腊肉"]],
@@ -61,7 +81,7 @@ def generate_weekly_menu(week_year: int, week_number: int):
             [["青椒银芽鸡丝", "木耳咸肉冬瓜片"], ["红椒莴笋鸡片", "榨菜毛豆肉丝"]],
             [["香莴笋炒蛋", "咸肉香菇煮百叶"], ["花菜木耳鸡片", "莲藕咸肉丁"]],
         ],
-        [
+        [  # 素菜
             [["干丝白菜", "葱油萝卜丝"], ["面筋青菜", "木耳冬瓜"]],
             [["葱油海带丝", "姜汁菠菜"], ["清炒空心菜", "芹菜海带丝"]],
             [["炒青菜", "蒜叶萝卜"], ["葱油佛手瓜", "香菇青菜"]],
@@ -70,7 +90,7 @@ def generate_weekly_menu(week_year: int, week_number: int):
             [["木耳花菜", "油豆腐白菜"], ["青菜百叶丝", "芹菜银芽"]],
             [["韭菜银芽", "番茄卷心菜"], ["红烧慈菇", "青菜腐竹"]],
         ],
-        [
+        [  # 例汤
             [["雪菜豆腐汤"], ["油豆腐粉丝汤"]],
             [["萝卜鸡块汤"], ["土豆牛肉羹"]],
             [["蘑菇肉丝蛋汤"], ["西红柿蛋汤"]],
@@ -210,8 +230,8 @@ def generate_menu():
     # 调用菜单生成算法
     menu_data = generate_weekly_menu(week_year, week_number)
     
-    # 菜品分类映射
-    categories = ["大荤一", "大荤二", "小荤一", "小荤二", "素菜一", "素菜二", "例汤"]
+    # 菜品类型映射：大荤、小荤、素菜、例汤
+    dish_types = ["大荤", "小荤", "素菜", "例汤"]
     meal_types = ["午餐", "晚餐"]
     
     # 创建总菜单记录
@@ -230,19 +250,46 @@ def generate_menu():
     db.session.flush()
     
     # 保存菜单明细
-    for category_idx, category_data in enumerate(menu_data):
-        category = categories[category_idx]
-        for day_idx, day_data in enumerate(category_data):
+    # menu_data 结构：[大荤, 小荤, 素菜, 例汤]
+    # 每个菜品类型：[周一, 周二, ..., 周日]
+    # 每天：[午餐, 晚餐]
+    # 每餐：根据菜品类型和用餐时间不同
+    for dish_type_idx, dish_type_data in enumerate(menu_data):
+        dish_type = dish_types[dish_type_idx]  # 大荤、小荤、素菜、例汤
+        
+        for day_idx, day_data in enumerate(dish_type_data):
             day_of_week = day_idx + 1  # 1=周一
+            
             for meal_idx, meal_dishes in enumerate(day_data):
-                meal_type = meal_types[meal_idx]
+                meal_type = meal_types[meal_idx]  # 午餐、晚餐
+                
+                # 根据菜品类型和用餐时间确定分类
+                if dish_type == "大荤":
+                    if meal_type == "午餐":
+                        # 午餐：大荤一、大荤二、大荤三
+                        categories = ["大荤一", "大荤二", "大荤三"]
+                    else:  # 晚餐
+                        # 晚餐：大荤一、大荤二
+                        categories = ["大荤一", "大荤二"]
+                elif dish_type == "小荤":
+                    # 小荤午餐/晚餐：小荤一、小荤二
+                    categories = ["小荤一", "小荤二"]
+                elif dish_type == "素菜":
+                    # 素菜午餐/晚餐：素菜一、素菜二
+                    categories = ["素菜一", "素菜二"]
+                else:  # 例汤
+                    # 例汤午餐/晚餐：例汤
+                    categories = ["例汤"]
+                
+                # 保存每个菜品
                 for sort_order, dish_name in enumerate(meal_dishes):
+                    dish_category = categories[sort_order] if sort_order < len(categories) else categories[-1]
                     item = WeeklyMenuItem(
                         weekly_menu_id=weekly_menu.id,
                         day_of_week=day_of_week,
                         meal_type=meal_type,
                         dish_name=dish_name,
-                        dish_category=category,
+                        dish_category=dish_category,
                         sort_order=sort_order,
                     )
                     db.session.add(item)
@@ -343,4 +390,76 @@ def update_weekly_menu(menu_id):
     db.session.commit()
     
     return jsonify({"msg": "更新成功"})
+
+
+@weekly_menu_bp.put("/<int:menu_id>/items/replace")
+@jwt_required()
+@roles_required("user", "admin", "superadmin")
+def replace_weekly_menu_item(menu_id: int):
+    """
+    替换“一个单元格”的菜品（按 day_of_week + meal_type + dish_category 定位）
+
+    入参：
+    {
+      "day_of_week": 1-7,
+      "meal_type": "午餐" | "晚餐",
+      "dish_category": "大荤一" | ... | "例汤",
+      "new_dish_name": "新菜品名"
+    }
+    """
+    data = request.json or {}
+    day_of_week = data.get("day_of_week")
+    meal_type = data.get("meal_type")
+    dish_category = data.get("dish_category")
+    new_dish_name = (data.get("new_dish_name") or "").strip()
+
+    if not day_of_week or not meal_type or not dish_category or not new_dish_name:
+        return jsonify({"msg": "day_of_week、meal_type、dish_category、new_dish_name 必填"}), 400
+
+    menu = WeeklyMenu.query.get_or_404(menu_id)
+
+    # 定位现有项
+    item = WeeklyMenuItem.query.filter_by(
+        weekly_menu_id=menu.id,
+        day_of_week=day_of_week,
+        meal_type=meal_type,
+        dish_category=dish_category,
+    ).first()
+
+    if item:
+        item.dish_name = new_dish_name
+    else:
+        # 如果该单元格原本为空：创建一个新项（sort_order 尽量按分类落位）
+        def _sort_order_for_category(meal: str, category: str) -> int:
+            if meal == "午餐":
+                order = ["大荤一", "大荤二", "大荤三", "小荤一", "小荤二", "素菜一", "素菜二", "例汤"]
+            else:
+                order = ["大荤一", "大荤二", "小荤一", "小荤二", "素菜一", "素菜二", "例汤"]
+            return order.index(category) if category in order else 0
+
+        item = WeeklyMenuItem(
+            weekly_menu_id=menu.id,
+            day_of_week=day_of_week,
+            meal_type=meal_type,
+            dish_name=new_dish_name,
+            dish_category=dish_category,
+            sort_order=_sort_order_for_category(meal_type, dish_category),
+        )
+        db.session.add(item)
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "msg": "替换成功",
+            "item": {
+                "id": item.id,
+                "day_of_week": item.day_of_week,
+                "meal_type": item.meal_type,
+                "dish_name": item.dish_name,
+                "dish_category": item.dish_category,
+                "sort_order": item.sort_order,
+            },
+        }
+    )
 

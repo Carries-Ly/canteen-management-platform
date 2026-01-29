@@ -20,6 +20,7 @@ from .routes.weekly_menu import weekly_menu_bp
 from .routes.sub_menu import sub_menu_bp
 from .routes.inventory import inventory_bp
 from .routes.purchase_order import purchase_order_bp
+from .routes.dishes import dishes_bp
 # #region agent log
 import json
 import os
@@ -99,6 +100,7 @@ def create_app():
     app.register_blueprint(sub_menu_bp, url_prefix="/api/sub-menus")
     app.register_blueprint(inventory_bp, url_prefix="/api/inventory")
     app.register_blueprint(purchase_order_bp, url_prefix="/api/purchase-orders")
+    app.register_blueprint(dishes_bp, url_prefix="/api/dishes")
 
     # 全局错误处理
     @app.errorhandler(404)

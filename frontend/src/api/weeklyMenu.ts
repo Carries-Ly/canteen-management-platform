@@ -94,3 +94,15 @@ export async function updateWeeklyMenu(id: number, menu: { status?: string; item
   return data;
 }
 
+export async function replaceWeeklyMenuItem(
+  menuId: number,
+  payload: { day_of_week: number; meal_type: string; dish_category: string; new_dish_name: string }
+) {
+  const client = authAxios();
+  const { data } = await client.put<{ msg: string; item: WeeklyMenuItem }>(
+    `/api/weekly-menus/${menuId}/items/replace`,
+    payload
+  );
+  return data;
+}
+
