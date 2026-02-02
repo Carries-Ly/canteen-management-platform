@@ -34,6 +34,8 @@ function authAxios() {
 export interface SubMenu {
   id: number;
   weekly_menu_id: number;
+  week_year?: number;
+  week_number?: number;
   company_id: number;
   company_name: string | null;
   name: string | null;
@@ -74,7 +76,7 @@ export async function selectSubMenu(params: {
     day_of_week?: number;
     meal_type?: string;
     dish_name?: string;
-    dish_category?: string;
+    dish_category?: string | null;
   }>;
   name?: string;
 }) {

@@ -10,11 +10,8 @@
             placeholder="选择周（周一-周日）"
             style="width: 220px; margin-right: 10px"
           />
-          <el-button type="primary" @click="handleGenerate" :loading="generating" :disabled="!selectedWeekInfo">
+          <el-button type="primary" @click="handleGenerate" :loading="generating" :disabled="!selectedWeekInfo || !isFutureWeek">
             生成菜单
-          </el-button>
-          <el-button @click="handleLoadMenu" :loading="loading" :disabled="!selectedWeekInfo">
-            查询历史
           </el-button>
         </div>
       </div>
@@ -50,8 +47,10 @@
             <template #default="{ row }">
               <button
                 class="dish-cell-btn"
+                :class="{ 'readonly': !isMenuEditable }"
                 type="button"
                 @click="openEditCell(row, d.day)"
+                :disabled="!isMenuEditable"
                 :title="getCellText(row, d.key)"
               >
                 <span class="dish-cell-text">{{ getCellText(row, d.key) || '—' }}</span>
@@ -103,13 +102,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { fetchWeeklyMenus, getWeeklyMenu, generateWeeklyMenu, replaceWeeklyMenuItem, type WeeklyMenu, type WeeklyMenuItem } from '@/api/weeklyMenu';
 import { searchDishes, type DishSearchItem } from '@/api/dishes';
 
 const loading = ref(false);
 const generating = ref(false);
+const generatingMenuId = ref<number | null>(null);
+const pollInterval = ref<number | null>(null);
 const selectedWeekDate = ref<Date | null>(null);
 const currentMenu = ref<WeeklyMenu | null>(null);
 
@@ -138,11 +139,34 @@ function getISOWeekInfo(date: Date): WeekInfo {
 
 const selectedWeekInfo = computed<WeekInfo | null>(() => {
   if (!selectedWeekDate.value) return null;
-  const info = getISOWeekInfo(selectedWeekDate.value);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/4b46b970-547e-4662-a3c2-96b8ed9f0e6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyMenu.vue:selectedWeekInfo',message:'week selected',data:{pickerDate:selectedWeekDate.value?.toISOString?.(),weekYear:info.weekYear,weekNumber:info.weekNumber,weekStart:info.weekStart.toISOString(),weekEnd:info.weekEnd.toISOString(),weekStartDay:info.weekStart.getDay(),weekEndDay:info.weekEnd.getDay()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  return info;
+  return getISOWeekInfo(selectedWeekDate.value);
+});
+
+// 判断选中的周是否是未来周（可以生成和编辑）
+const isFutureWeek = computed(() => {
+  if (!selectedWeekInfo.value) return false;
+  
+  // 获取当前周的周一
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayOfWeek = today.getDay() || 7; // 0=周日，转换为1-7（周一到周日）
+  const mondayOfThisWeek = new Date(today);
+  mondayOfThisWeek.setDate(today.getDate() - (dayOfWeek - 1));
+  // 重置时间部分，只比较日期
+  mondayOfThisWeek.setHours(0, 0, 0, 0);
+  
+  // 获取选中周的周一
+  const selectedMonday = new Date(selectedWeekInfo.value.weekStart);
+  selectedMonday.setHours(0, 0, 0, 0);
+  
+  // 如果选中周的周一在未来，则可以生成和编辑
+  return selectedMonday > mondayOfThisWeek;
+});
+
+// 判断菜单是否可编辑：只有未来周的菜单可以编辑
+const isMenuEditable = computed(() => {
+  if (!currentMenu.value) return false;
+  return isFutureWeek.value;
 });
 
 interface TableRow {
@@ -203,8 +227,8 @@ const tableData = computed<TableRow[]>(() => {
         const dayItems = items.filter(
           item => item.day_of_week === day && item.meal_type === mealType && item.dish_category === category
         );
-        const dayKey = dayColumns[day - 1].key as keyof TableRow;
-        row[dayKey] = dayItems
+        const dayKey = dayColumns[day - 1].key as DayKey;
+        (row as any)[dayKey] = dayItems
           .slice()
           .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
           .map(i => i.dish_name);
@@ -259,6 +283,11 @@ const editContext = ref<{ day: number; dayLabel: string; mealType: string; categ
 );
 
 function openEditCell(row: TableRow, day: number) {
+  if (!isMenuEditable.value) {
+    ElMessage.warning('本周及之前周的菜单不可修改');
+    return;
+  }
+  
   const dayLabel = dayColumns.find(d => d.day === day)?.label || `周${day}`;
   const key = dayColumns.find(d => d.day === day)?.key as DayKey;
   const currentDish = getCellText(row, key);
@@ -267,10 +296,6 @@ function openEditCell(row: TableRow, day: number) {
   dishOptions.value = [];
   selectedDish.value = null;
   editDialogVisible.value = true;
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/4b46b970-547e-4662-a3c2-96b8ed9f0e6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyMenu.vue:openEditCell',message:'open edit dialog',data:{day,mealType:row.mealType,category:row.category},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 }
 
 async function handleSearchDishes() {
@@ -278,10 +303,6 @@ async function handleSearchDishes() {
   if (!q) return;
   searching.value = true;
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4b46b970-547e-4662-a3c2-96b8ed9f0e6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyMenu.vue:handleSearchDishes',message:'search dishes click',data:{q},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-
     dishOptions.value = await searchDishes(q);
     selectedDish.value = dishOptions.value[0] || null;
   } catch (e: any) {
@@ -294,6 +315,11 @@ async function handleSearchDishes() {
 async function handleConfirmReplace() {
   if (!currentMenu.value) return;
   if (!selectedDish.value) return;
+  
+  if (!isMenuEditable.value) {
+    ElMessage.warning('本周及之前周的菜单不可修改');
+    return;
+  }
 
   const payload = {
     day_of_week: editContext.value.day,
@@ -303,10 +329,6 @@ async function handleConfirmReplace() {
   };
 
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4b46b970-547e-4662-a3c2-96b8ed9f0e6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyMenu.vue:handleConfirmReplace',message:'replace dish confirm',data:{menuId:currentMenu.value.id,...payload},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
     const res = await replaceWeeklyMenuItem(currentMenu.value.id, payload);
     const updated = res.item;
     if (currentMenu.value.items) {
@@ -326,52 +348,174 @@ async function handleConfirmReplace() {
   }
 }
 
+const stopPolling = () => {
+  if (pollInterval.value !== null) {
+    clearInterval(pollInterval.value);
+    pollInterval.value = null;
+  }
+  generating.value = false;
+  generatingMenuId.value = null;
+};
+
+const pollMenuStatus = async (menuId: number) => {
+  try {
+    const menu = await getWeeklyMenu(menuId);
+    
+    // 如果菜单有items且generating_status为completed，或者没有generating_status但有items，认为已完成
+    const isCompleted = menu.generating_status === 'completed' || (!menu.generating_status && menu.items && menu.items.length > 0);
+    
+    if (isCompleted) {
+      stopPolling();
+      ElMessage.success('菜单生成完成');
+      await loadMenuById(menuId);
+    } else if (menu.generating_status === 'failed') {
+      stopPolling();
+      ElMessage.error('菜单生成失败，请重试');
+    }
+    // 如果还在generating状态，继续轮询
+  } catch (error: any) {
+    console.error('轮询菜单状态失败:', error);
+  }
+};
+
 const handleGenerate = async () => {
   if (!selectedWeekInfo.value) {
     ElMessage.warning('请选择一个周');
     return;
   }
 
-  generating.value = true;
-  try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4b46b970-547e-4662-a3c2-96b8ed9f0e6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyMenu.vue:handleGenerate',message:'generate weekly menu',data:{weekYear:selectedWeekInfo.value.weekYear,weekNumber:selectedWeekInfo.value.weekNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    const result = await generateWeeklyMenu(selectedWeekInfo.value.weekYear, selectedWeekInfo.value.weekNumber);
-    ElMessage.success('菜单生成成功');
-    await loadMenuById(result.id);
-  } catch (error: any) {
-    ElMessage.error(error.response?.data?.msg || '生成菜单失败');
-  } finally {
-    generating.value = false;
-  }
-};
-
-const handleLoadMenu = async () => {
-  if (!selectedWeekInfo.value) {
-    ElMessage.warning('请选择一个周');
+  // 检查是否是历史菜单（本周及之前周），历史菜单不允许生成
+  if (!isFutureWeek.value) {
+    ElMessage.warning('本周及之前周的菜单不允许重新生成，只能查看历史');
     return;
   }
 
+  if (generating.value) {
+    return;
+  }
+
+  try {
+    // 先尝试生成，如果菜单已存在，会返回409状态码
+    const result = await generateWeeklyMenu(selectedWeekInfo.value.weekYear, selectedWeekInfo.value.weekNumber);
+    
+    generatingMenuId.value = result.id;
+    
+    if (result.generating_status === 'completed' || !result.generating_status) {
+      stopPolling();
+      ElMessage.success('菜单生成成功');
+      await loadMenuById(result.id);
+    } else {
+      ElMessage.info('菜单正在生成中，请稍候...');
+      pollInterval.value = window.setInterval(() => {
+        pollMenuStatus(result.id);
+      }, 2000);
+    }
+  } catch (error: any) {
+    // 如果菜单已存在（409状态码），显示确认对话框
+    if (error.response?.status === 409) {
+      const existingMenu = error.response.data;
+      const statusText = existingMenu.generating_status === 'generating' ? '正在生成' : '已经生成';
+      
+      try {
+        await ElMessageBox.confirm(
+          `该周菜单${statusText}，再次生成则会覆盖之前的菜单数据，你确定吗？`,
+          '确认覆盖',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+          }
+        );
+        
+        // 用户确认，使用force参数重新生成
+        generating.value = true;
+        try {
+          const result = await generateWeeklyMenu(selectedWeekInfo.value.weekYear, selectedWeekInfo.value.weekNumber, true);
+          
+          generatingMenuId.value = result.id;
+          
+          if (result.generating_status === 'completed' || !result.generating_status) {
+            stopPolling();
+            ElMessage.success('菜单生成成功');
+            await loadMenuById(result.id);
+          } else {
+            ElMessage.info('菜单正在生成中，请稍候...');
+            pollInterval.value = window.setInterval(() => {
+              pollMenuStatus(result.id);
+            }, 2000);
+          }
+        } catch (genError: any) {
+          stopPolling();
+          ElMessage.error(genError.response?.data?.msg || '生成菜单失败');
+        } finally {
+          generating.value = false;
+        }
+      } catch {
+        // 用户取消，不做任何操作
+      }
+    } else {
+      stopPolling();
+      ElMessage.error(error.response?.data?.msg || '生成菜单失败');
+    }
+  }
+};
+
+// 防止重复调用的标志
+let loadingMenuKey: string | null = null;
+
+const loadMenuByWeek = async () => {
+  if (!selectedWeekInfo.value) {
+    currentMenu.value = null;
+    return;
+  }
+
+  // 生成唯一key，防止重复调用
+  const menuKey = `${selectedWeekInfo.value.weekYear}-${selectedWeekInfo.value.weekNumber}`;
+  if (loadingMenuKey === menuKey && loading.value) {
+    // 如果正在加载同一个菜单，直接返回
+    return;
+  }
+  
+  // 如果已经加载了相同的菜单，且菜单已存在，直接返回
+  if (currentMenu.value && 
+      currentMenu.value.week_year === selectedWeekInfo.value.weekYear &&
+      currentMenu.value.week_number === selectedWeekInfo.value.weekNumber) {
+    return;
+  }
+
+  loadingMenuKey = menuKey;
+  
+  // 停止之前的轮询
+  stopPolling();
+
   loading.value = true;
   try {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/4b46b970-547e-4662-a3c2-96b8ed9f0e6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WeeklyMenu.vue:handleLoadMenu',message:'load weekly menu by week',data:{weekYear:selectedWeekInfo.value.weekYear,weekNumber:selectedWeekInfo.value.weekNumber},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     const menus = await fetchWeeklyMenus({
       week_year: selectedWeekInfo.value.weekYear,
       week_number: selectedWeekInfo.value.weekNumber,
     });
+    
     if (menus.length > 0) {
-      await loadMenuById(menus[0].id);
+      const menu = menus[0];
+      // 如果菜单正在生成中，开始轮询
+      if (menu.generating_status === 'generating') {
+        generating.value = true;
+        generatingMenuId.value = menu.id;
+        pollInterval.value = window.setInterval(() => {
+          pollMenuStatus(menu.id);
+        }, 2000);
+      } else {
+        await loadMenuById(menu.id);
+      }
     } else {
-      ElMessage.warning('未找到该周的菜单，请先生成');
       currentMenu.value = null;
     }
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.msg || '加载菜单失败');
+    console.error('加载菜单失败:', error);
+    currentMenu.value = null;
   } finally {
     loading.value = false;
+    loadingMenuKey = null;
   }
 };
 
@@ -384,8 +528,34 @@ const loadMenuById = async (id: number) => {
   }
 };
 
-onMounted(() => {
+// 监听日期变化，自动加载菜单（使用防抖避免频繁调用）
+let watchTimer: number | null = null;
+watch(selectedWeekDate, () => {
+  if (watchTimer) {
+    clearTimeout(watchTimer);
+  }
+  watchTimer = window.setTimeout(() => {
+    if (selectedWeekDate.value) {
+      loadMenuByWeek();
+    }
+  }, 300); // 300ms 防抖
+}, { immediate: false });
+
+onMounted(async () => {
   selectedWeekDate.value = new Date();
+  // 等待计算属性更新
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  // 默认加载当前周的菜单（不通过watch，直接调用，避免重复）
+  await loadMenuByWeek();
+});
+
+onUnmounted(() => {
+  stopPolling();
+  if (watchTimer) {
+    clearTimeout(watchTimer);
+    watchTimer = null;
+  }
 });
 </script>
 
@@ -449,23 +619,38 @@ onMounted(() => {
   width: 100%;
   min-height: 44px;
   padding: 6px 6px;
-  text-align: left;
+  text-align: center;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.12s ease, border-color 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.dish-cell-btn:hover {
+.dish-cell-btn:hover:not(:disabled) {
   background: rgba(64, 158, 255, 0.08);
   border-color: rgba(64, 158, 255, 0.35);
+}
+
+.dish-cell-btn:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.dish-cell-btn.readonly {
+  cursor: default;
 }
 
 .dish-cell-text {
   display: inline-block;
   white-space: pre-wrap;
   word-break: break-word;
+  text-align: center;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
 .edit-meta {

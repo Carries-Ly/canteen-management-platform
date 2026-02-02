@@ -11,6 +11,7 @@ class WeeklyMenu(db.Model):
     week_start_date = db.Column(db.Date, nullable=False)  # 周一
     week_end_date = db.Column(db.Date, nullable=False)  # 周日
     status = db.Column(db.String(20), default="draft")  # draft/published
+    generating_status = db.Column(db.String(20), default="idle")  # idle/generating/completed/failed
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())

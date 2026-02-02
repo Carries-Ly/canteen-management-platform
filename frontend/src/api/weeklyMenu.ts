@@ -38,6 +38,7 @@ export interface WeeklyMenu {
   week_start_date: string;
   week_end_date: string;
   status: string;
+  generating_status?: string; // idle/generating/completed/failed
   created_by: number | null;
   created_at: string | null;
   updated_at: string | null;
@@ -68,11 +69,12 @@ export async function getWeeklyMenu(id: number) {
   return data;
 }
 
-export async function generateWeeklyMenu(weekYear: number, weekNumber: number) {
+export async function generateWeeklyMenu(weekYear: number, weekNumber: number, force: boolean = false) {
   const client = authAxios();
-  const { data } = await client.post<{ id: number; msg: string }>('/api/weekly-menus/generate', {
+  const { data } = await client.post<{ id: number; msg: string; generating_status?: string; exists?: boolean; status?: string }>('/api/weekly-menus/generate', {
     week_year: weekYear,
     week_number: weekNumber,
+    force: force,
   });
   return data;
 }
