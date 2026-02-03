@@ -1045,6 +1045,7 @@ def get_result():
     has_braise = [[0, 0] for _ in range(7)]
     has_special = [[0, 0] for _ in range(7)]
     used_main = [[[], []] for _ in range(7)]
+
     try:
         d = select_meal(例汤, "例汤", has_bean, has_braise, has_special, used_main)
         if d is None:
@@ -1073,7 +1074,11 @@ def get_result():
 
 
 if __name__ == "__main__":
+    count = 0
     while True:
         result = get_result()
+        count += 1
         if result is not None:
             break
+    print(result)
+    print(f"count:{count}")

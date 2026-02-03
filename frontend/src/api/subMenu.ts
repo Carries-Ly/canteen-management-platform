@@ -91,6 +91,7 @@ export async function selectSubMenu(params: {
 export async function getSubMenuHistory(params?: {
   company_id?: number;
   week_year?: number;
+  week_number?: number;
 }) {
   const client = authAxios();
   const { data } = await client.get<SubMenu[]>('/api/sub-menus/history', { params });

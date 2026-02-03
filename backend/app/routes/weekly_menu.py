@@ -104,9 +104,10 @@ def generate_weekly_menu_data(week_year: int, week_number: int):
     # ]
     # 尝试调用实际算法
     try:
-        res = get_result()
-        if res is not None:
-            return res
+        while True:
+            res = get_result()
+            if res is not None:
+                return res
     except Exception as e:
         print(f"菜单生成算法调用失败: {e}")
     
@@ -219,6 +220,20 @@ def get_weekly_menu(menu_id):
 
 def save_menu_items(menu_id: int, menu_data: list):
     """保存菜单明细项到数据库（在独立会话中）"""
+    import json
+    import os
+    # #region agent log
+    with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+        f.write(json.dumps({
+            'sessionId': 'debug-session',
+            'runId': 'pre-fix',
+            'hypothesisId': 'A',
+            'location': 'weekly_menu.py:save_menu_items:entry',
+            'message': 'save_menu_items called',
+            'data': {'menu_id': menu_id, 'has_menu_data': bool(menu_data)},
+            'timestamp': int(__import__('time').time() * 1000)
+        }) + '\n')
+    # #endregion
     from app import create_app
     app = create_app()
     with app.app_context():
@@ -226,6 +241,18 @@ def save_menu_items(menu_id: int, menu_data: list):
         from app.extensions import db
         menu = WeeklyMenu.query.get(menu_id)
         if not menu:
+            # #region agent log
+            with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({
+                    'sessionId': 'debug-session',
+                    'runId': 'pre-fix',
+                    'hypothesisId': 'A',
+                    'location': 'weekly_menu.py:save_menu_items:menuNotFound',
+                    'message': 'menu not found',
+                    'data': {'menu_id': menu_id},
+                    'timestamp': int(__import__('time').time() * 1000)
+                }) + '\n')
+            # #endregion
             return
         
         dish_types = ["大荤", "小荤", "素菜", "例汤"]
@@ -268,11 +295,64 @@ def save_menu_items(menu_id: int, menu_data: list):
                             db.session.add(item)
                             item_count += 1
             
+            # #region agent log
+            with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({
+                    'sessionId': 'debug-session',
+                    'runId': 'pre-fix',
+                    'hypothesisId': 'A',
+                    'location': 'weekly_menu.py:save_menu_items:beforeStatusUpdate',
+                    'message': 'before status update',
+                    'data': {'menu_id': menu_id, 'item_count': item_count, 'current_status': menu.generating_status},
+                    'timestamp': int(__import__('time').time() * 1000)
+                }) + '\n')
+            # #endregion
+            
             # 更新状态为完成
             menu.generating_status = "completed"
             menu.status = "draft"
+            
+            # #region agent log
+            with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({
+                    'sessionId': 'debug-session',
+                    'runId': 'pre-fix',
+                    'hypothesisId': 'A',
+                    'location': 'weekly_menu.py:save_menu_items:beforeCommit',
+                    'message': 'before commit',
+                    'data': {'menu_id': menu_id, 'new_status': menu.generating_status},
+                    'timestamp': int(__import__('time').time() * 1000)
+                }) + '\n')
+            # #endregion
+            
             db.session.commit()
+            # 注意：不需要 refresh，commit 已经将更改持久化到数据库
+            
+            # #region agent log
+            with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({
+                    'sessionId': 'debug-session',
+                    'runId': 'post-fix',
+                    'hypothesisId': 'A',
+                    'location': 'weekly_menu.py:save_menu_items:afterCommit',
+                    'message': 'after commit',
+                    'data': {'menu_id': menu_id, 'status': menu.generating_status, 'item_count': item_count},
+                    'timestamp': int(__import__('time').time() * 1000)
+                }) + '\n')
+            # #endregion
         except Exception as e:
+            # #region agent log
+            with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({
+                    'sessionId': 'debug-session',
+                    'runId': 'pre-fix',
+                    'hypothesisId': 'B',
+                    'location': 'weekly_menu.py:save_menu_items:exception',
+                    'message': 'exception in save_menu_items',
+                    'data': {'menu_id': menu_id, 'error': str(e)},
+                    'timestamp': int(__import__('time').time() * 1000)
+                }) + '\n')
+            # #endregion
             db.session.rollback()
             menu = WeeklyMenu.query.get(menu_id)
             if menu:
@@ -283,6 +363,19 @@ def save_menu_items(menu_id: int, menu_data: list):
 
 def generate_menu_async(menu_id: int, week_year: int, week_number: int):
     """异步生成菜单的后台任务"""
+    import json
+    # #region agent log
+    with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+        f.write(json.dumps({
+            'sessionId': 'debug-session',
+            'runId': 'pre-fix',
+            'hypothesisId': 'D',
+            'location': 'weekly_menu.py:generate_menu_async:entry',
+            'message': 'generate_menu_async started',
+            'data': {'menu_id': menu_id, 'week_year': week_year, 'week_number': week_number},
+            'timestamp': int(__import__('time').time() * 1000)
+        }) + '\n')
+    # #endregion
     try:
         # 更新状态为生成中
         from app import create_app
@@ -291,17 +384,80 @@ def generate_menu_async(menu_id: int, week_year: int, week_number: int):
             from app.extensions import db
             menu = WeeklyMenu.query.get(menu_id)
             if not menu:
+                # #region agent log
+                with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps({
+                        'sessionId': 'debug-session',
+                        'runId': 'pre-fix',
+                        'hypothesisId': 'D',
+                        'location': 'weekly_menu.py:generate_menu_async:menuNotFound',
+                        'message': 'menu not found in async',
+                        'data': {'menu_id': menu_id},
+                        'timestamp': int(__import__('time').time() * 1000)
+                    }) + '\n')
+                # #endregion
                 return
             
             menu.generating_status = "generating"
             db.session.commit()
         
+        # #region agent log
+        with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({
+                'sessionId': 'debug-session',
+                'runId': 'pre-fix',
+                'hypothesisId': 'D',
+                'location': 'weekly_menu.py:generate_menu_async:beforeGenerate',
+                'message': 'before generate_weekly_menu_data',
+                'data': {'menu_id': menu_id},
+                'timestamp': int(__import__('time').time() * 1000)
+            }) + '\n')
+        # #endregion
+        
         # 调用菜单生成算法
         menu_data = generate_weekly_menu_data(week_year, week_number)
+
+        # #region agent log
+        with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({
+                'sessionId': 'debug-session',
+                'runId': 'pre-fix',
+                'hypothesisId': 'D',
+                'location': 'weekly_menu.py:generate_menu_async:afterGenerate',
+                'message': 'after generate_weekly_menu_data',
+                'data': {'menu_id': menu_id, 'has_menu_data': bool(menu_data)},
+                'timestamp': int(__import__('time').time() * 1000)
+            }) + '\n')
+        # #endregion
         
         # 保存菜单明细（在独立会话中）
         save_menu_items(menu_id, menu_data)
+        
+        # #region agent log
+        with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({
+                'sessionId': 'debug-session',
+                'runId': 'pre-fix',
+                'hypothesisId': 'D',
+                'location': 'weekly_menu.py:generate_menu_async:afterSave',
+                'message': 'after save_menu_items',
+                'data': {'menu_id': menu_id},
+                'timestamp': int(__import__('time').time() * 1000)
+            }) + '\n')
+        # #endregion
     except Exception as e:
+        # #region agent log
+        with open('/Users/c4rries/Desktop/贝晟/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({
+                'sessionId': 'debug-session',
+                'runId': 'pre-fix',
+                'hypothesisId': 'D',
+                'location': 'weekly_menu.py:generate_menu_async:exception',
+                'message': 'exception in generate_menu_async',
+                'data': {'menu_id': menu_id, 'error': str(e)},
+                'timestamp': int(__import__('time').time() * 1000)
+            }) + '\n')
+        # #endregion
         # 更新状态为失败
         from app import create_app
         app = create_app()
@@ -544,3 +700,5 @@ def replace_weekly_menu_item(menu_id: int):
         }
     )
 
+if __name__ == '__main__':
+    generate_weekly_menu_data(2026,7)

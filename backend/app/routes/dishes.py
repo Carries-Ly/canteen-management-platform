@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-
+import re
 from .utils import roles_required
-
+from app.utils.processMenu import read_menu_excel
 dishes_bp = Blueprint("dishes", __name__)
 
 
@@ -27,13 +27,24 @@ def search_dishes():
     if not q:
         return jsonify({"items": []})
 
+    filepath = "app/data/new_meal_list.xls"  # 替换为您的Excel文件路径
+    # 读取并处理Excel文件
+    meal_list = read_menu_excel(filepath)
+
+    matched_dishes = search_meal(q, meal_list)
+    print(matched_dishes)
+    if matched_dishes is None:
+        return jsonify({"items": []})
     # 简单占位：回显输入关键词
     return jsonify(
         {
-            "items": [
-                {"id": f"mock-{q}-1", "name": f"{q}（占位结果1）"},
-                {"id": f"mock-{q}-2", "name": f"{q}（占位结果2）"},
-            ]
+            "items": matched_dishes
         }
     )
 
+def search_meal(query, meal_list):
+    """
+    在 meal_list 中模糊搜索
+    """
+    regex = re.compile(re.escape(query), re.IGNORECASE)
+    return [meal for meal in meal_list if regex.search(meal)]

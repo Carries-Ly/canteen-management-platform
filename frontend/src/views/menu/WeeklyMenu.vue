@@ -106,13 +106,13 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { fetchWeeklyMenus, getWeeklyMenu, generateWeeklyMenu, replaceWeeklyMenuItem, type WeeklyMenu, type WeeklyMenuItem } from '@/api/weeklyMenu';
 import { searchDishes, type DishSearchItem } from '@/api/dishes';
+import { useWeeklyMenuStore } from '@/store/weeklyMenu';
 
 const loading = ref(false);
 const generating = ref(false);
-const generatingMenuId = ref<number | null>(null);
-const pollInterval = ref<number | null>(null);
 const selectedWeekDate = ref<Date | null>(null);
 const currentMenu = ref<WeeklyMenu | null>(null);
+const weeklyMenuStore = useWeeklyMenuStore();
 
 type WeekInfo = { weekYear: number; weekNumber: number; weekStart: Date; weekEnd: Date };
 
@@ -349,20 +349,99 @@ async function handleConfirmReplace() {
 }
 
 const stopPolling = () => {
-  if (pollInterval.value !== null) {
-    clearInterval(pollInterval.value);
-    pollInterval.value = null;
-  }
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/afb94993-0489-4bec-ae77-2b991e500ccf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'debug-session',
+      runId: 'post-fix',
+      hypothesisId: 'E',
+      location: 'WeeklyMenu.vue:stopPolling',
+      message: 'stopPolling called',
+      data: {
+        hasInterval: weeklyMenuStore.pollInterval !== null,
+        generatingMenuId: weeklyMenuStore.generatingMenuId,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+  weeklyMenuStore.stopPolling();
   generating.value = false;
-  generatingMenuId.value = null;
 };
 
 const pollMenuStatus = async (menuId: number) => {
+  // 检查是否超过最大轮询次数
+  weeklyMenuStore.incrementPollCount();
+  if (weeklyMenuStore.pollCount > weeklyMenuStore.MAX_POLL_COUNT) {
+    stopPolling();
+    ElMessage.warning('菜单生成超时（已等待20分钟），请检查后端服务或稍后重试');
+    return;
+  }
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/afb94993-0489-4bec-ae77-2b991e500ccf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'debug-session',
+      runId: 'post-fix',
+      hypothesisId: 'C',
+      location: 'WeeklyMenu.vue:pollMenuStatus:entry',
+      message: 'pollMenuStatus called',
+      data: { menuId, pollCount: weeklyMenuStore.pollCount },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   try {
     const menu = await getWeeklyMenu(menuId);
     
-    // 如果菜单有items且generating_status为completed，或者没有generating_status但有items，认为已完成
-    const isCompleted = menu.generating_status === 'completed' || (!menu.generating_status && menu.items && menu.items.length > 0);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afb94993-0489-4bec-ae77-2b991e500ccf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'post-fix',
+        hypothesisId: 'C',
+        location: 'WeeklyMenu.vue:pollMenuStatus:afterFetch',
+        message: 'menu status received',
+        data: {
+          menuId,
+          generatingStatus: menu.generating_status,
+          hasItems: !!menu.items,
+          itemsLength: menu.items?.length || 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    
+    // 如果菜单有items且generating_status为completed，或者items有数据（即使状态还是generating），认为已完成
+    const isCompleted = menu.generating_status === 'completed' || (menu.items && menu.items.length > 0);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afb94993-0489-4bec-ae77-2b991e500ccf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'post-fix',
+        hypothesisId: 'C',
+        location: 'WeeklyMenu.vue:pollMenuStatus:isCompleted',
+        message: 'isCompleted check',
+        data: {
+          menuId,
+          isCompleted,
+          generatingStatus: menu.generating_status,
+          itemsLength: menu.items?.length || 0,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     
     if (isCompleted) {
       stopPolling();
@@ -374,7 +453,26 @@ const pollMenuStatus = async (menuId: number) => {
     }
     // 如果还在generating状态，继续轮询
   } catch (error: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/afb94993-0489-4bec-ae77-2b991e500ccf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'post-fix',
+        hypothesisId: 'C',
+        location: 'WeeklyMenu.vue:pollMenuStatus:error',
+        message: 'pollMenuStatus error',
+        data: {
+          menuId,
+          error: error?.message || String(error),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     console.error('轮询菜单状态失败:', error);
+    // 即使出错也继续轮询（除非超过最大次数）
   }
 };
 
@@ -398,17 +496,16 @@ const handleGenerate = async () => {
     // 先尝试生成，如果菜单已存在，会返回409状态码
     const result = await generateWeeklyMenu(selectedWeekInfo.value.weekYear, selectedWeekInfo.value.weekNumber);
     
-    generatingMenuId.value = result.id;
-    
     if (result.generating_status === 'completed' || !result.generating_status) {
       stopPolling();
       ElMessage.success('菜单生成成功');
       await loadMenuById(result.id);
     } else {
       ElMessage.info('菜单正在生成中，请稍候...');
-      pollInterval.value = window.setInterval(() => {
+      const intervalId = window.setInterval(() => {
         pollMenuStatus(result.id);
       }, 2000);
+      weeklyMenuStore.startPolling(intervalId, result.id);
     }
   } catch (error: any) {
     // 如果菜单已存在（409状态码），显示确认对话框
@@ -432,17 +529,16 @@ const handleGenerate = async () => {
         try {
           const result = await generateWeeklyMenu(selectedWeekInfo.value.weekYear, selectedWeekInfo.value.weekNumber, true);
           
-          generatingMenuId.value = result.id;
-          
           if (result.generating_status === 'completed' || !result.generating_status) {
             stopPolling();
             ElMessage.success('菜单生成成功');
             await loadMenuById(result.id);
           } else {
             ElMessage.info('菜单正在生成中，请稍候...');
-            pollInterval.value = window.setInterval(() => {
+            const intervalId = window.setInterval(() => {
               pollMenuStatus(result.id);
             }, 2000);
+            weeklyMenuStore.startPolling(intervalId, result.id);
           }
         } catch (genError: any) {
           stopPolling();
@@ -500,10 +596,10 @@ const loadMenuByWeek = async () => {
       // 如果菜单正在生成中，开始轮询
       if (menu.generating_status === 'generating') {
         generating.value = true;
-        generatingMenuId.value = menu.id;
-        pollInterval.value = window.setInterval(() => {
+        const intervalId = window.setInterval(() => {
           pollMenuStatus(menu.id);
         }, 2000);
+        weeklyMenuStore.startPolling(intervalId, menu.id);
       } else {
         await loadMenuById(menu.id);
       }
@@ -546,12 +642,44 @@ onMounted(async () => {
   // 等待计算属性更新
   await new Promise(resolve => setTimeout(resolve, 100));
   
+  // 如果store中有正在进行的轮询，恢复轮询状态
+  if (weeklyMenuStore.generatingMenuId && weeklyMenuStore.pollInterval === null) {
+    // 轮询被意外停止，重新启动
+    generating.value = true;
+    const intervalId = window.setInterval(() => {
+      pollMenuStatus(weeklyMenuStore.generatingMenuId!);
+    }, 2000);
+    weeklyMenuStore.startPolling(intervalId, weeklyMenuStore.generatingMenuId);
+  } else if (weeklyMenuStore.generatingMenuId) {
+    // 轮询仍在进行，更新本地状态
+    generating.value = true;
+  }
+  
   // 默认加载当前周的菜单（不通过watch，直接调用，避免重复）
   await loadMenuByWeek();
 });
 
 onUnmounted(() => {
-  stopPolling();
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/afb94993-0489-4bec-ae77-2b991e500ccf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: 'debug-session',
+      runId: 'post-fix',
+      hypothesisId: 'E',
+      location: 'WeeklyMenu.vue:onUnmounted',
+      message: 'component unmounted - NOT stopping polling',
+      data: {
+        hasInterval: weeklyMenuStore.pollInterval !== null,
+        generatingMenuId: weeklyMenuStore.generatingMenuId,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+  // 不再在组件卸载时停止轮询，让轮询在全局store中继续运行
+  // stopPolling();
   if (watchTimer) {
     clearTimeout(watchTimer);
     watchTimer = null;

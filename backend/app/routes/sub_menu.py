@@ -180,6 +180,7 @@ def get_sub_menu_history():
     
     company_id_filter = request.args.get("company_id", type=int)
     week_year = request.args.get("week_year", type=int)
+    week_number = request.args.get("week_number", type=int)
     
     q = SubMenu.query.join(WeeklyMenu)
     
@@ -194,6 +195,9 @@ def get_sub_menu_history():
     
     if week_year:
         q = q.filter(WeeklyMenu.week_year == week_year)
+    
+    if week_number:
+        q = q.filter(WeeklyMenu.week_number == week_number)
     
     sub_menus = q.order_by(WeeklyMenu.week_year.desc(), WeeklyMenu.week_number.desc()).all()
     

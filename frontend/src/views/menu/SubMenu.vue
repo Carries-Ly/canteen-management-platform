@@ -482,6 +482,7 @@ const loadSubMenuHistory = async () => {
     const params: any = {};
     if (selectedWeekInfo.value) {
       params.week_year = selectedWeekInfo.value.weekYear;
+      params.week_number = selectedWeekInfo.value.weekNumber;
     }
     if (selectedCompanyId.value && isStaff.value) {
       params.company_id = selectedCompanyId.value;
@@ -489,10 +490,7 @@ const loadSubMenuHistory = async () => {
     const data = await getSubMenuHistory(params);
     subMenus.value = data;
     
-    // 如果有子菜单，默认查看第一个的详情
-    if (data.length > 0) {
-      await handleViewDetail(data[0].id);
-    }
+    // 移除自动展示详情的逻辑，让用户手动点击"查看详情"按钮
   } catch (error: any) {
     console.error('加载子菜单失败:', error);
     subMenus.value = [];
